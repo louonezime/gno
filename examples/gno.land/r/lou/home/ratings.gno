@@ -27,7 +27,7 @@ func NewRating(rating uint64) string {
 	return addRating(rating, "")
 }
 
-func NewRatingComment(rating uint64, comment string) string {
+func NewRatingComment(comment string, rating uint64) string {
 	return addRating(rating, comment)
 }
 
@@ -38,11 +38,9 @@ func addRating(rating uint64, commment string) string {
 	}
 	id := ratingID.Next()
 
-	var p *comment.Comment
-	if commment == "" {
-		p = comment.NewRating(rating, std.PreviousRealm().Address(), id)
-	} else {
-		p = comment.NewComment(rating, commment, std.PreviousRealm().Address(), id)
+	p, err := comment.NewComment(rating, commment, std.PreviousRealm().Address(), id)
+	if err != nil {
+		panic(err)
 	}
 
 	ratings.Set(caller.String(), p)
@@ -53,7 +51,7 @@ func UpdateRating(rating uint64) string {
 	return updateRating(rating, "")
 }
 
-func UpdateRatingComment(rating uint64, comment string) string {
+func UpdateRatingComment(comment string, rating uint64) string {
 	return updateRating(rating, comment)
 }
 
@@ -72,7 +70,7 @@ func updateRating(rating uint64, commentStr string) string {
 	return addRating(rating, commentStr) + "\nSuccessfully updated rating!\n"
 }
 
-func UpdateByID(id seqid.ID, rating uint64, comment string) string {
+func UpdateByID(comment string, id seqid.ID, rating uint64) string {
 	caller := std.PreviousRealm().Address()
 
 	if key, found := findRatingByID(id); found {
@@ -124,33 +122,48 @@ func findRatingByID(id seqid.ID) (string, bool) {
 	return keyP, found
 }
 
-func RenderRatings() string {
-	out := md.H2("★ Ratings ★\n\n")
+func RenderPostRating() string {
+	out := "# "
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "1"))
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "2"))
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "3"))
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "4"))
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "5"))
+	out += "\n\n"
 	out += md.Link("[ ADD A RATING ]", txlink.Call("NewRatingComment", "comment", "Comment", "rating", "0"))
 	out += "\n\n"
+	return out
+}
+
+func RenderRatings() string {
+	out := md.HorizontalRule()
+	out += md.H1(" ★ Ratings ★\n\n")
+	out += RenderPostRating()
 
 	if ratings.Size() == 0 {
 		out += "No ratings found."
 	} else {
 		ratings.ReverseIterate("", "", func(key string, value interface{}) bool {
-			comment := value.(*comment.Comment)
-			user := users.ResolveAddress(comment.Author())
-			if user != nil {
-				out += md.Bold(ufmt.Sprintf("[#%s]:", user.RenderLink("")))
-			} else {
-				out += md.Bold(ufmt.Sprintf("[#%s]:", key))
+			c := value.(*comment.Comment)
+			user := users.ResolveAddress(c.Author())
+			out += "# "
+			out += comment.RenderRating(c.Rating())
+			out += ufmt.Sprintf("\n> (%d) ", c.Rating())
+			if *c.Comment() != "" {
+				out += ufmt.Sprintf("\"%s\" ", *c.Comment())
 			}
 
-			out += ufmt.Sprintf(" (%d) ", comment.Rating())
-			for i := comment.Rating(); i > 0; i-- {
-				out += "★"
+			out += "from "
+			if user != nil {
+				out += md.Bold(user.RenderLink(""))
+			} else {
+				out += md.Bold(key)
 			}
-			if comment.Comment() != nil {
-				out += ufmt.Sprintf(" %s [ ", *comment.Comment())
-			}
-			out += md.Link("✎ EDIT", txlink.Call("UpdateByID", "comment", "Comment", "id", comment.ID().String(), "rating", "0"))
+
+			out += " ["
+			out += md.Link("✎ EDIT", txlink.Call("UpdateByID", "comment", "Comment", "id", c.ID().String(), "rating", "0"))
 			out += " | "
-			out += md.Link("🗑 DELETE", txlink.Call("DeleteRating", "id", comment.ID().String()))
+			out += md.Link("🗑 DELETE", txlink.Call("DeleteRating", "id", c.ID().String()))
 			out += " ]\n\n"
 			return false
 		})

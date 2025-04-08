@@ -1,7 +1,7 @@
 package eightball
 
 import (
-	"std"
+	"crypto/sha256"
 )
 
 var (
@@ -30,19 +30,7 @@ var (
 )
 
 func GetResponse(seed string) string {
-	index := (HashString(seed) + int(std.ChainHeight())%len(decisions))
+	hash := sha256.Sum256([]byte(seed))
+	index := int(hash[0]) % len(decisions)
 	return decisions[index]
-}
-
-func HashString(s string) int {
-	const prime = 31
-	hash := 0
-
-	for i := 0; i < len(s); i++ {
-		hash = hash*prime + int(s[i])
-	}
-	if hash < 0 {
-		hash = -hash
-	}
-	return hash
 }
