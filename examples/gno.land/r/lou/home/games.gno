@@ -4,8 +4,11 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/r/sys/users"
 
 	"gno.land/p/lou/eightball"
 	"gno.land/p/lou/rps"
@@ -16,15 +19,26 @@ var (
 	currentProfile  *rps.Profile
 	gameSession     *rps.GameSession
 	eightballAnswer string
+
+	admin  = std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
+	token  *grc20.Token
+	ledger *grc20.PrivateLedger
 )
 
 func init() {
-	currentProfile = rps.NewProfile("")
+	CreateToken("LouTokens", "LTK", 2)
+
+	currentProfile = rps.NewProfile("", token, ledger)
 	gameSession = rps.NewSession()
 	profiles = avl.NewTree()
 }
 
 // ROCK PAPER SCISSORS
+
+func CreateToken(name, symbol string, decimals uint) {
+	token, ledger = grc20.NewToken(name, symbol, 2)
+	ledger.Mint(admin, 100000)
+}
 
 func Play(input string) {
 	caller := std.PreviousRealm().Address()
@@ -37,7 +51,7 @@ func Play(input string) {
 		profile, _ = value.(*rps.Profile)
 	}
 	if profile == nil {
-		profile = rps.NewProfile("")
+		profile = rps.NewProfile(addr, token, ledger)
 		profiles.Set(addr, profile)
 	}
 	currentProfile = profile
@@ -52,22 +66,31 @@ func Play(input string) {
 
 	if gameSession.HasWon() {
 		profile.SetWins(profile.Wins() + 1)
+		profile.RewardOnWin(admin)
 	} else {
 		profile.SetLosses(profile.Losses() + 1)
 	}
 }
 
 func RenderRockPaperScissors() string {
+	user := users.ResolveAddress(std.Address(currentProfile.Account()))
 	out := md.H2("Rock, Paper, Scissor\n\n")
-	out += currentProfile.String()
-	out += "\n\nPlay [ "
-	out += md.Link("Rock", txlink.Call("Play", "input", "rock"))
-	out += " | "
-	out += md.Link("Paper", txlink.Call("Play", "input", "paper"))
-	out += " | "
-	out += md.Link("Scissors ", txlink.Call("Play", "input", "scissors"))
-	out += " ]\n\n" + gameSession.String()
-	out += "\n\n"
+
+	out += "(This game will reward you some LTK (LouTokens)!)\n\n"
+	out += currentProfile.String() + "\n\n"
+	if user != nil && currentProfile.Account() != "" {
+		out += md.Italic("--> " + user.RenderLink("") + "\n\n")
+	} else if currentProfile.Account() != "" {
+		out += md.Italic("--> "+currentProfile.Account()) + "\n\n"
+	}
+
+	out += "Play [ "
+	out += md.Link("Rock", txlink.Call("Play", "input", "rock")) + " | "
+	out += md.Link("Paper", txlink.Call("Play", "input", "paper")) + " | "
+	out += md.Link("Scissors ", txlink.Call("Play", "input", "scissors")) + " ]\n\n"
+	out += gameSession.String() + "\n\n"
+
+	out += ufmt.Sprintf("current allowance: **%d (%s)**\n\n", token.Allowance(admin, std.Address(currentProfile.Account())), token.GetSymbol())
 	return out
 }
 
@@ -81,8 +104,7 @@ func Ask(question string) string {
 
 func RenderMagic8Ball() string {
 	out := md.H2("Magic 8 Ball\n\n")
-	out += md.Link("[ ASK A QUESTION ]", txlink.Call("Ask", "question", "Question"))
-	out += "\n\n"
+	out += md.Link("[ ASK A QUESTION ]", txlink.Call("Ask", "question", "Question")) + "\n\n"
 	out += eightballAnswer
 	return out
 }

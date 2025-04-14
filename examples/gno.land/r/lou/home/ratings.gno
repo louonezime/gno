@@ -128,16 +128,14 @@ func RenderPostRating() string {
 	out += md.Link("☆", txlink.Call("NewRating", "rating", "2"))
 	out += md.Link("☆", txlink.Call("NewRating", "rating", "3"))
 	out += md.Link("☆", txlink.Call("NewRating", "rating", "4"))
-	out += md.Link("☆", txlink.Call("NewRating", "rating", "5"))
-	out += "\n\n"
-	out += md.Link("[ ADD A RATING ]", txlink.Call("NewRatingComment", "comment", "Comment", "rating", "0"))
-	out += "\n\n"
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "5")) + "\n\n"
+	out += md.Link("[ ADD A RATING ]", txlink.Call("NewRatingComment", "comment", "Comment", "rating", "0")) + "\n\n"
 	return out
 }
 
 func RenderRatings() string {
 	out := md.HorizontalRule()
-	out += md.H1(" ★ Ratings ★\n\n")
+	out += md.H1("Ratings\n\n")
 	out += RenderPostRating()
 
 	if ratings.Size() == 0 {
@@ -160,10 +158,8 @@ func RenderRatings() string {
 				out += md.Bold(key)
 			}
 
-			out += " ["
-			out += md.Link("✎ EDIT", txlink.Call("UpdateByID", "comment", "Comment", "id", c.ID().String(), "rating", "0"))
-			out += " | "
-			out += md.Link("🗑 DELETE", txlink.Call("DeleteRating", "id", c.ID().String()))
+			out += " [" + md.Link("✎ EDIT", txlink.Call("UpdateByID", "comment", "Comment", "id", c.ID().String(), "rating", "0"))
+			out += " | " + md.Link("🗑 DELETE", txlink.Call("DeleteRating", "id", c.ID().String()))
 			out += " ]\n\n"
 			return false
 		})

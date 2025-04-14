@@ -4,9 +4,11 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
 
 	"gno.land/p/lou/ascii"
+	"gno.land/p/lou/tokenaccess"
 )
 
 const (
@@ -34,6 +36,9 @@ type Profile struct {
 	wins    int64
 	losses  int64
 	account string
+	token   *grc20.Token
+	led     *grc20.PrivateLedger
+	owner   *std.Address
 }
 
 type GameSession struct {
@@ -62,11 +67,42 @@ func (profile *Profile) SetLosses(losses int64) {
 	profile.losses = losses
 }
 
-func NewProfile(account string) *Profile {
+func (profile *Profile) SetAddrOwner(addr std.Address) {
+	profile.owner = &addr
+}
+
+func (profile *Profile) RewardOnWin(owner std.Address) {
+	tokenaccess.RewardAndApprove(owner, 10, profile.token, profile.led, std.Address(profile.account), 5)
+}
+
+func NewProfile(
+	account string,
+	token *grc20.Token,
+	led *grc20.PrivateLedger,
+) *Profile {
 	return &Profile{
 		wins:    0,
 		losses:  0,
 		account: account,
+		token:   token,
+		led:     led,
+		owner:   nil,
+	}
+}
+
+func NewProfileAndOwner(
+	account string,
+	token *grc20.Token,
+	led *grc20.PrivateLedger,
+	owner std.Address,
+) *Profile {
+	return &Profile{
+		wins:    0,
+		losses:  0,
+		account: account,
+		token:   token,
+		led:     led,
+		owner:   &owner,
 	}
 }
 
