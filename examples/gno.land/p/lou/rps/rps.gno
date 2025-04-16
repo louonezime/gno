@@ -71,8 +71,19 @@ func (profile *Profile) SetAddrOwner(addr std.Address) {
 	profile.owner = &addr
 }
 
-func (profile *Profile) RewardOnWin(owner std.Address) {
+func (profile Profile) RewardOnWin(owner std.Address) {
 	tokenaccess.RewardAndApprove(owner, 10, profile.token, profile.led, std.Address(profile.account), 5)
+}
+
+func (profile Profile) String() string {
+	out := ""
+
+	if profile.Wins() > 0 || profile.Losses() > 0 {
+		out += "Career: "
+	}
+	out += ascii.Repeat("🏆", int(profile.Wins()))
+	out += ascii.Repeat("❌", int(profile.Losses()))
+	return out
 }
 
 func NewProfile(
@@ -114,11 +125,11 @@ func NewSession() *GameSession {
 	}
 }
 
-func (game *GameSession) IsATie() bool {
+func (game GameSession) IsATie() bool {
 	return game.isATie
 }
 
-func (game *GameSession) HasWon() bool {
+func (game GameSession) HasWon() bool {
 	return game.hasWon
 }
 
@@ -143,22 +154,11 @@ func (game *GameSession) SendHand(input string) error {
 	return nil
 }
 
+func (game GameSession) String() string {
+	return game.detail
+}
+
 func GetHand() string {
 	random := int(std.ChainHeight()) % len(hands)
 	return hands[random]
-}
-
-func (profile Profile) String() string {
-	out := ""
-
-	if profile.Wins() > 0 || profile.Losses() > 0 {
-		out += "Career: "
-	}
-	out += ascii.Repeat("🏆", int(profile.Wins()))
-	out += ascii.Repeat("❌", int(profile.Losses()))
-	return out
-}
-
-func (game GameSession) String() string {
-	return game.detail
 }

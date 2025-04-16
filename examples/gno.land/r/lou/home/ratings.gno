@@ -99,6 +99,9 @@ func DeleteRating(id seqid.ID) string {
 
 func checkoutCaller() {
 	caller := std.PreviousRealm().Address()
+	if !caller.IsValid() {
+		panic("Invalid address")
+	}
 
 	if _, exists := ratings.Get(caller.String()); !exists {
 		panic("Rating either unrecognisable/ inaccessible from your address")

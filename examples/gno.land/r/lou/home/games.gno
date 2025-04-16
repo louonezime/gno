@@ -4,7 +4,6 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
@@ -19,26 +18,15 @@ var (
 	currentProfile  *rps.Profile
 	gameSession     *rps.GameSession
 	eightballAnswer string
-
-	admin  = std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
-	token  *grc20.Token
-	ledger *grc20.PrivateLedger
 )
 
 func init() {
-	CreateToken("LouTokens", "LTK", 2)
-
 	currentProfile = rps.NewProfile("", token, ledger)
 	gameSession = rps.NewSession()
 	profiles = avl.NewTree()
 }
 
 // ROCK PAPER SCISSORS
-
-func CreateToken(name, symbol string, decimals uint) {
-	token, ledger = grc20.NewToken(name, symbol, 2)
-	ledger.Mint(admin, 100000)
-}
 
 func Play(input string) {
 	caller := std.PreviousRealm().Address()

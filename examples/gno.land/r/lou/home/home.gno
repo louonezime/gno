@@ -8,7 +8,7 @@ import (
 	"gno.land/p/lou/tokenaccess"
 )
 
-func Render(path string) string {
+func Render(_ string) string {
 	out := "<gno-columns>\n\n"
 	out += md.Image("Github profile picture", "https://avatars.githubusercontent.com/u/109749395?v=4&width=30") + "\n\n"
 	out += "|||\n\n"

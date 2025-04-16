@@ -4,49 +4,57 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
 
+type WAlignment string
+type HAlignment string
+
 const (
 	// Width Alignment
-	Center = "center"
-	Left   = "left"
-	Right  = "right"
+	AlignWCenter WAlignment = "center"
+	AlignLeft    WAlignment = "left"
+	AlignRight   WAlignment = "right"
 
 	// Height Alignment
-	Bottom = "bottom"
-	Top    = "top"
+	AlignHCenter HAlignment = "center"
+	AlignTop     HAlignment = "top"
+	AlignBottom  HAlignment = "bottom"
 )
 
-// padLine aligns text within a given width.
+// PadLine aligns text within a given width.
 //
-// Supports Left, Right, and Center alignment.
-func padLine(line string, width int, align string) string {
+// Supports AlignLeft, AlignRight, and AlignWCenter alignment.
+func PadLine(line string, width int, align WAlignment, space string) string {
 	padding := width - len(line)
+	if width < len(line) {
+		padding = 0
+	}
 	switch align {
-	case Right:
-		return Repeat(" ", padding) + line
-	case Center:
+	case AlignRight:
+		return Repeat(space, padding) + line
+	case AlignWCenter:
 		left := padding / 2
 		right := padding - left
-		return Repeat(" ", left) + line + Repeat(" ", right)
-	default: // Left
-		return line + Repeat(" ", padding)
+		return Repeat(space, left) + line + Repeat(space, right)
+	default: // AlignLeft
+		return line + Repeat(space, padding)
 	}
 }
 
-// padHeight pads lines vertically according to alignment.
+// PadHeight pads lines vertically according to alignment.
 //
-// Supports Top, Bottom, and Center alignment.
-func padHeight(lines []string, height int, align string) []string {
+// Supports AlignTop, AlignBottom, and AlignHCenter alignment.
+func PadHeight(lines []string, height int, align HAlignment) []string {
 	padded := []string{}
 	extra := height - len(lines)
 
 	topPad := 0
 	switch align {
-	case Bottom:
+	case AlignBottom:
 		topPad = extra
-	case Center:
+	case AlignHCenter:
 		topPad = extra / 2
 	}
 
@@ -62,12 +70,10 @@ func padHeight(lines []string, height int, align string) []string {
 
 // Repeat returns repetition of a string n times.
 func Repeat(char string, n int) string {
-	out := ""
-
-	for i := 0; i < n; i++ {
-		out += char
+	if n <= 0 {
+		return ""
 	}
-	return out
+	return strings.Repeat(char, n)
 }
 
 // Box draws a single-line text in a simple box.
@@ -89,7 +95,7 @@ func Box(text string) string {
 	if strings.Contains(text, "\n") {
 		return FlexFrame(strings.Split(text, "\n"), "left")
 	}
-	top := "+" + Repeat("-", width-2) + "+\n"
+	top := "+" + Repeat("-", width-2) + ufmt.Sprintf("[%d] = %s", len(text), text) + "+\n"
 	middle := "| " + text + " |\n"
 	bottom := "+" + Repeat("-", width-2) + "+"
 
@@ -109,7 +115,7 @@ func Box(text string) string {
 //	| worldd |
 //	|     !! |
 //	+-------+
-func FlexFrame(lines []string, align string) string {
+func FlexFrame(lines []string, align WAlignment) string {
 	maxWidth := 0
 
 	for i := 0; i < len(lines); i++ {
@@ -123,7 +129,7 @@ func FlexFrame(lines []string, align string) string {
 
 	body := ""
 	for i := 0; i < len(lines); i++ {
-		body += "| " + padLine(lines[i], maxWidth, align) + " |\n"
+		body += "| " + PadLine(lines[i], maxWidth, align, " ") + " |\n"
 	}
 
 	return md.CodeBlock(top+body+bottom) + "\n"
@@ -144,7 +150,7 @@ func FlexFrame(lines []string, align string) string {
 //	|     !!     |
 //	|            |
 //	+------------+
-func Frame(lines []string, wAlign string, width int, height int, hAlign string) string {
+func Frame(lines []string, wAlign WAlignment, width int, height int, hAlign HAlignment) string {
 	maxWidth := width
 	for i := 0; i < len(lines); i++ {
 		if len(lines[i]) > maxWidth {
@@ -155,14 +161,65 @@ func Frame(lines []string, wAlign string, width int, height int, hAlign string) 
 	if len(lines) > height {
 		height = len(lines)
 	}
-	lines = padHeight(lines, height, hAlign)
+	lines = PadHeight(lines, height, hAlign)
 
 	top := "+" + Repeat("-", maxWidth+2) + "+\n"
 	bottom := "+" + Repeat("-", maxWidth+2) + "+"
 	body := ""
 
 	for _, line := range lines {
-		body += "| " + padLine(line, maxWidth, wAlign) + " |\n"
+		body += "| " + PadLine(line, maxWidth, wAlign, " ") + " |\n"
+	}
+
+	return md.CodeBlock(top+body+bottom) + "\n"
+}
+
+// FixedFrame draws a frame with a fixed width and height, truncating or wrapping content as needed.
+// Width and height include the content area, not the frame borders.
+//
+// Example:
+//
+//	Frame([]string{"hello world!!"}, "center", 10, 4, "center")
+//
+// Gives:
+//
+//	+------------+
+//	|            |
+//	|   hello    |
+//	|  world!!   |
+//	|            |
+//	+------------+
+func FixedFrame(lines []string, wAlign WAlignment, width int, height int, hAlign HAlignment) string {
+	var wrapped []string
+
+	for _, line := range lines {
+		words := strings.Fields(line)
+		current := ""
+		for _, word := range words {
+			if len(current)+len(word)+1 > width {
+				wrapped = append(wrapped, current)
+				current = word
+			} else {
+				if current == "" {
+					current = word
+				} else {
+					current += " " + word
+				}
+			}
+		}
+		if current != "" {
+			wrapped = append(wrapped, current)
+		}
+	}
+
+	wrapped = PadHeight(wrapped, height, hAlign)
+
+	top := "+" + Repeat("-", width+2) + "+\n"
+	bottom := "+" + Repeat("-", width+2) + "+"
+
+	body := ""
+	for _, line := range wrapped {
+		body += "| " + PadLine(line, width, wAlign, " ") + " |\n"
 	}
 
 	return md.CodeBlock(top+body+bottom) + "\n"
