@@ -6,37 +6,30 @@ import (
 	"gno.land/p/lou/card"
 )
 
-// dao to create a shared collection???
-// your own collection
-// add tags
-
 func Render(_ string) string {
 	out := md.H1("Collections") + "\n\n"
 	out += md.HorizontalRule()
 	out += "<gno-columns>\n\n"
 
 	cards := []*card.Card{
-		card.NewCard("Philosophy 🧠", []string{
-			"A space for deep thoughts.",
+		card.NewCard("Games", []string{
+			"play.",
 			"",
-			"- /gno.land/p/socrates",
-			"- /gno.land/p/zen",
-			"- /gno.land/p/plato",
+			"- /gno.land/demo/tamagotchi",
 		}, 24, 0),
 
-		card.NewCard("Memes 😂", []string{
-			"Because we need humor.",
+		card.NewCard("UI", []string{
+			"markdown lets go.",
 			"",
-			"- /gno.land/p/wow",
-			"- /gno.land/p/doge",
+			"- /gno.land/p/moul/md",
+			"- /gno.land/p/moul/mdtable",
 		}, 24, 0),
 
 		card.NewCard("Tech & Tools 🛠️", []string{
-			"Useful utilities and libraries.",
+			"utilities and libraries.",
 			"",
-			"- /gno.land/p/ascii",
-			"- /gno.land/p/mdtable",
-			"- /gno.land/p/lou",
+			"- /gno.land/p/demo/svg",
+			"- /gno.land/p/moul/txlink",
 		}, 24, 0),
 	}
 
