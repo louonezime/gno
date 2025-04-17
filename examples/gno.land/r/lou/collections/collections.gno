@@ -1,52 +1,135 @@
 package collections
 
 import (
-	"gno.land/p/moul/md"
+	"std"
+	"strings"
 
-	"gno.land/p/lou/card"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/txlink"
+	"gno.land/r/sys/users"
+
+	"gno.land/p/lou/curator"
 )
 
-func Render(_ string) string {
+var (
+	collections  *avl.Tree
+	collectionID seqid.ID
+)
+
+func init() {
+	collections = avl.NewTree()
+	collectionID = seqid.ID(0)
+}
+
+func NewCollection(title, description string, tags string) string {
+	caller := std.PreviousRealm().Address()
+	splitTags := strings.Fields(tags)
+	id := collectionID.Next()
+
+	c, err := curator.CreateCollection(id, title, description, splitTags, caller)
+	if err != nil {
+		panic(err)
+	}
+
+	collections.Set(id.String(), c)
+	return "Successfully created collection! " + id.String()
+}
+
+func UpdateCollection(id, title, description string, tags []string) string {
+	caller := std.PreviousRealm().Address()
+
+	val, removed := collections.Remove(id)
+	old := val.(*curator.Collection)
+	if !removed {
+		panic("Update failed; couldn't remove old collection")
+	}
+
+	newCollection, err := curator.CreateCollection(old.ID(), title, description, tags, caller)
+	if err != nil {
+		panic(err)
+	}
+
+	collections.Set(caller.String(), newCollection)
+	return "Successfully updated collection."
+}
+
+func DeleteCollection() string {
+	caller := std.PreviousRealm().Address()
+
+	if _, removed := collections.Remove(caller.String()); !removed {
+		panic("Couldn't delete collection.")
+	}
+	return "Collection deleted."
+}
+
+func AddToCollection(id, title, path string, tags string) string {
+	splitTags := strings.Fields(tags)
+
+	val, exists := collections.Get(id)
+	if !exists {
+		panic("Collection is unrecognisable.")
+	}
+	collection := val.(*curator.Collection)
+
+	c, err := curator.AddToCollection(collection, title, path, splitTags)
+	if err != nil {
+		panic(err)
+	}
+	if _, removed := collections.Remove(c.ID().String()); !removed {
+		panic("Adding of collection failed; couldn't remove current collection")
+	}
+	collections.Set(c.ID().String(), c)
+	return title + " successfully added to collection."
+}
+
+func renderCollection(id string) string {
+	if collection, exists := collections.Get(id); exists {
+		c := collection.(*curator.Collection)
+		out := curator.RenderCollection(c)
+
+		out += md.Link("[ ADD TO COLLECTION ]", txlink.Call("AddToCollection", "id", c.ID().String()))
+		return out
+	}
+	return "Collection is unrecognisable."
+}
+
+func Render(path string) string {
+	if path != "" {
+		return renderCollection(path)
+	}
 	out := md.H1("Collections") + "\n\n"
 	out += md.HorizontalRule()
-	out += "<gno-columns>\n\n"
+	// games, err := curator.CreateCollection(id, "Games", "jjj", []string{"fun", "entertainment"}, std.PreviousRealm().Address())
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// games.AddToCollection("Tamagotchi", "gno.land/p/demo/tamagotchi", []string{"game", "fun", "pet"})
+	// collections.Set(games.ID().String(), games)
 
-	cards := []*card.Card{
-		card.NewCard("Games", []string{
-			"play.",
-			"",
-			"- /gno.land/demo/tamagotchi",
-		}, 24, 0),
+	if collections.Size() == 0 {
+		out += "No collections found."
+	} else {
+		collections.ReverseIterate("", "", func(key string, value interface{}) bool {
+			c := value.(*curator.Collection)
+			user := users.ResolveAddress(c.Owner())
 
-		card.NewCard("UI", []string{
-			"markdown lets go.",
-			"",
-			"- /gno.land/p/moul/md",
-			"- /gno.land/p/moul/mdtable",
-		}, 24, 0),
+			out += c.PreviewCollection()
+			out += "\nfrom "
+			if user != nil {
+				out += md.Bold(user.RenderLink(""))
+			} else {
+				out += md.Bold(c.Owner().String())
+			}
 
-		card.NewCard("Tech & Tools 🛠️", []string{
-			"utilities and libraries.",
-			"",
-			"- /gno.land/p/demo/svg",
-			"- /gno.land/p/moul/txlink",
-		}, 24, 0),
+			out += " [" + md.Link("✎ EDIT", txlink.Call("UpdateCollection", "title", c.Title(), "desc", c.Description()))
+			out += " | " + md.Link("🗑 DELETE", txlink.Call("DeleteCollection"))
+			out += " ]\n\n"
+			out += md.HorizontalRule()
+			return false
+		})
 	}
-
-	for i, c := range cards {
-		out += c.String()
-		if i == 0 || i == 1 {
-			out += "|||\n\n"
-		}
-	}
-	out += "</gno-columns>\n\n"
-
-	out += md.H2("Create & Share")
-	out += "\n\n"
-	out += "- Start your own collection.\n"
-	out += "- Add packages from your realms.\n"
-	out += "- Tag them for others to discover.\n"
-	out += "- Join DAOs for collaborative collections.\n"
 
 	return out
 }

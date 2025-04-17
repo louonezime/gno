@@ -150,7 +150,12 @@ func FlexFrame(lines []string, align WAlignment) string {
 //	|     !!     |
 //	|            |
 //	+------------+
-func Frame(lines []string, wAlign WAlignment, width int, height int, hAlign HAlignment) string {
+func Frame(
+	lines []string,
+	wAlign WAlignment,
+	width, height int,
+	hAlign HAlignment,
+) string {
 	maxWidth := width
 	for i := 0; i < len(lines); i++ {
 		if len(lines[i]) > maxWidth {
@@ -189,7 +194,12 @@ func Frame(lines []string, wAlign WAlignment, width int, height int, hAlign HAli
 //	|  world!!   |
 //	|            |
 //	+------------+
-func FixedFrame(lines []string, wAlign WAlignment, width int, height int, hAlign HAlignment) string {
+func FixedFrame(
+	lines []string,
+	wAlign WAlignment,
+	width, height int,
+	hAlign HAlignment,
+) string {
 	var wrapped []string
 
 	for _, line := range lines {

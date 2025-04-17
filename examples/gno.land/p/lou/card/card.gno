@@ -23,6 +23,14 @@ type Card struct {
 	link   *string
 }
 
+func (card Card) Header() string {
+	return card.header
+}
+
+func (card Card) Content() []string {
+	return card.content
+}
+
 func (card *Card) SetHeader(header string) {
 	card.header = header
 }
@@ -61,13 +69,25 @@ func (card *Card) SetContentAlignmentH(
 	card.cHeightAlignment = height
 }
 
-func contentRender(lines []string, wAlign ascii.WAlignment, width int, height int, hAlign ascii.HAlignment) string { // TODO make fixed frame
+// word-based
+func contentRender(
+	lines []string,
+	wAlign ascii.WAlignment,
+	width, height int,
+	hAlign ascii.HAlignment,
+) string {
 	var wrapped []string
 
 	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			wrapped = append(wrapped, "")
+			continue
+		}
+
 		words := strings.Fields(line)
 		current := ""
-		for _, word := range words {
+
+		for j, word := range words {
 			if len(current)+len(word)+1 > width {
 				wrapped = append(wrapped, current)
 				current = word
@@ -78,9 +98,9 @@ func contentRender(lines []string, wAlign ascii.WAlignment, width int, height in
 					current += " " + word
 				}
 			}
-		}
-		if current != "" {
-			wrapped = append(wrapped, current)
+			if j == len(words)-1 && current != "" {
+				wrapped = append(wrapped, current)
+			}
 		}
 	}
 
@@ -91,11 +111,11 @@ func contentRender(lines []string, wAlign ascii.WAlignment, width int, height in
 		body += ascii.PadLine(line, width, wAlign, "⠀") + "\n"
 	}
 
-	return body + "\n"
+	return body
 }
 
 func (card Card) String() string {
-	header := ascii.PadLine(card.header, int(card.width)/2, card.hWidthAlignment, "⠀")
+	header := ascii.PadLine(card.header, int(card.width)/3, card.hWidthAlignment, "⠀")
 	out := md.H1(header) + "\n\n"
 	formattedContent := contentRender(card.content, card.cWidthAlignment, int(card.width), int(card.height), card.cHeightAlignment)
 	out += formattedContent + "\n\n"
