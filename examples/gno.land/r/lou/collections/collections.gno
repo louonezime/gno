@@ -16,9 +16,11 @@ import (
 var (
 	collections  *avl.Tree
 	collectionID seqid.ID
+	gridMode     bool
 )
 
 func init() {
+	gridMode = false
 	collections = avl.NewTree()
 	collectionID = seqid.ID(0)
 }
@@ -66,6 +68,9 @@ func DeleteCollection() string {
 
 func AddToCollection(id, title, path string, tags string) string {
 	splitTags := strings.Fields(tags)
+	if !strings.Contains(path, "gno.land") {
+		panic("Please format with \"gno.land/\"<...>")
+	}
 
 	val, exists := collections.Get(id)
 	if !exists {
@@ -84,12 +89,34 @@ func AddToCollection(id, title, path string, tags string) string {
 	return title + " successfully added to collection."
 }
 
+func ToggleGridMode() {
+	gridMode = !gridMode
+}
+
+func ToggleGridModeByID(id string) {
+	if collection, exists := collections.Get(id); exists {
+		c := collection.(*curator.Collection)
+		c.ToggleGridMode()
+	} else {
+		panic("Collection is unrecognisable.")
+	}
+}
+
 func renderCollection(id string) string {
 	if collection, exists := collections.Get(id); exists {
 		c := collection.(*curator.Collection)
-		out := curator.RenderCollection(c)
+		out := md.H1(c.Title()) + "\n\n"
+		out += md.HorizontalRule() + "\n\n"
 
-		out += md.Link("[ ADD TO COLLECTION ]", txlink.Call("AddToCollection", "id", c.ID().String()))
+		out += "### " + md.Link("ADD TO COLLECTION ", txlink.Call("AddToCollection", "id", c.ID().String())) + "\n\n"
+		if c.GridMode() {
+			out += md.Link("Toggle to list", txlink.Call("ToggleGridModeByID", "id", id)) + "\n\n"
+			out += "<gno-columns>\n"
+		} else {
+			out += md.Link("Toggle to grid", txlink.Call("ToggleGridModeByID", "id", id)) + "\n\n"
+		}
+
+		out += curator.RenderCollection(c)
 		return out
 	}
 	return "Collection is unrecognisable."
@@ -101,32 +128,46 @@ func Render(path string) string {
 	}
 	out := md.H1("Collections") + "\n\n"
 	out += md.HorizontalRule()
-	// games, err := curator.CreateCollection(id, "Games", "jjj", []string{"fun", "entertainment"}, std.PreviousRealm().Address())
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// games.AddToCollection("Tamagotchi", "gno.land/p/demo/tamagotchi", []string{"game", "fun", "pet"})
-	// collections.Set(games.ID().String(), games)
 
+	out += "### " + md.Link("CREATE A COLLECTION ", txlink.Call("")) + "\n\n"
 	if collections.Size() == 0 {
-		out += "No collections found."
+		out += "No collections found.\n\n"
 	} else {
+		colCount := 0
+		if gridMode {
+			out += md.Link("Toggle to list", txlink.Call("ToggleGridMode")) + "\n\n"
+			out += "<gno-columns>\n"
+		} else {
+			out += md.Link("Toggle to grid", txlink.Call("ToggleGridMode")) + "\n\n"
+		}
+
 		collections.ReverseIterate("", "", func(key string, value interface{}) bool {
 			c := value.(*curator.Collection)
 			user := users.ResolveAddress(c.Owner())
 
-			out += c.PreviewCollection()
+			out += c.PreviewCollection(gridMode)
 			out += "\nfrom "
 			if user != nil {
-				out += md.Bold(user.RenderLink(""))
+				out += md.Bold(user.RenderLink("")) + "\n\n"
 			} else {
-				out += md.Bold(c.Owner().String())
+				out += md.Bold(c.Owner().String()) + "\n\n"
 			}
 
-			out += " [" + md.Link("✎ EDIT", txlink.Call("UpdateCollection", "title", c.Title(), "desc", c.Description()))
+			out += " [ " + md.Link("✎ EDIT", txlink.Call("UpdateCollection", "title", c.Title(), "desc", c.Description()))
 			out += " | " + md.Link("🗑 DELETE", txlink.Call("DeleteCollection"))
 			out += " ]\n\n"
 			out += md.HorizontalRule()
+
+			colCount++
+			if colCount%3 == 0 {
+				out += "\n</gno-columns>\n\n"
+				if colCount != collections.Size() {
+					out += "<gno-columns>\n"
+				}
+			} else if gridMode {
+				out += "\n|||\n"
+			}
+
 			return false
 		})
 	}

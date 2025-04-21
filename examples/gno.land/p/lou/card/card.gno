@@ -48,6 +48,11 @@ func (card *Card) SetHeight(height uint64) {
 }
 
 func (card *Card) SetWidth(width uint64) {
+	maxW := uint64(len(card.header))
+	if maxW > width && width != 0 {
+		width = maxW
+	}
+
 	card.width = width
 }
 
@@ -114,11 +119,11 @@ func contentRender(
 	return body
 }
 
-func (card Card) String() string {
+func (card Card) Render() string {
 	header := ascii.PadLine(card.header, int(card.width)/3, card.hWidthAlignment, "⠀")
-	out := md.H1(header) + "\n\n"
 	formattedContent := contentRender(card.content, card.cWidthAlignment, int(card.width), int(card.height), card.cHeightAlignment)
-	out += formattedContent + "\n\n"
+
+	out := md.H1(header) + "\n\n" + formattedContent + "\n\n"
 	return out
 }
 
@@ -129,7 +134,7 @@ func NewCard(
 	height uint64,
 ) *Card {
 	maxW := uint64(len(header))
-	if maxW > width {
+	if maxW > width && width != 0 {
 		width = maxW
 	}
 

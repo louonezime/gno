@@ -26,6 +26,8 @@ type Collection struct {
 	owner       std.Address
 	items       []*card.Card
 	tags        []string
+
+	gridMode bool
 }
 
 func (c Collection) ID() seqid.ID {
@@ -52,13 +54,12 @@ func (c Collection) Tags() []string {
 	return c.tags
 }
 
-func (c Collection) PreviewCollection() string {
-	path := ufmt.Sprintf("/r/lou/collections:%s", c.ID().String())
-	formattedPath := md.Link("➔", path)
-	tags := formatTags(c.tags)
+func (c Collection) GridMode() bool {
+	return c.gridMode
+}
 
-	card := card.NewCard(c.title, []string{c.description, tags, "\n", formattedPath}, 24, 0)
-	return card.String()
+func (c *Collection) ToggleGridMode() {
+	c.gridMode = !c.gridMode
 }
 
 func AddToCollection(c *Collection, title, path string, tags []string) (*Collection, error) {
@@ -78,28 +79,19 @@ func AddToCollection(c *Collection, title, path string, tags []string) (*Collect
 			}
 		}
 	}
-	item := createCard(title, path, tags)
+	item := createCard(title, path, tags, c.gridMode)
 	c.items = append(c.items, item)
 
 	return c, nil
 }
 
-func RenderCollection(c *Collection) string {
-	out := md.H1(c.title) + "\n\n"
-	out += md.HorizontalRule() + "\n\n"
+func createCard(title, path string, tags []string, gridMode bool) *card.Card {
+	namespace := strings.Split(path, "/")[2]
+	formattedPath := strings.TrimPrefix(path, "gno.land")
+	linkTitle := md.Link(title, formattedPath)
+	formattedTags := formatTags(tags, gridMode)
 
-	out += "<gno-columns>\n\n"
-	for i, c := range c.items {
-		out += c.String()
-		out += md.HorizontalRule()
-		if i%3 == 0 {
-		} else {
-			out += "|||\n\n"
-		}
-	}
-	out += "</gno-columns>\n\n"
-
-	return out
+	return card.NewCard(linkTitle, []string{"by " + namespace, formattedPath, formattedTags, "\n"}, 0, 0)
 }
 
 func NewCollection(title,
@@ -115,6 +107,7 @@ func NewCollection(title,
 		owner:       owner,
 		items:       []*card.Card{},
 		tags:        tags,
+		gridMode:    false,
 	}, nil
 }
 
@@ -132,22 +125,58 @@ func CreateCollection(
 	return col, nil
 }
 
-func formatTags(tags []string) string {
-	out := "- Tags : "
+func formatTags(tags []string, gridMode bool) string {
+	out := ""
+
+	if gridMode {
+		out += "- Tags: "
+	} else {
+		out += "Tags: "
+	}
+
 	for i, tag := range tags {
 		out += md.InlineCode(tag)
 		if i != len(tags)-1 {
 			out += ", "
 		}
 	}
-	return out
+	return out + "\n\n"
 }
 
-func createCard(title, path string, tags []string) *card.Card {
-	namespace := strings.Split(path, "/")[2]
-	formattedPath := strings.TrimPrefix(path, "gno.land")
-	link := md.Link("➔", formattedPath)
-	formattedTags := formatTags(tags)
+func (c Collection) PreviewCollection(gridMode bool) string {
+	path := ufmt.Sprintf("/r/lou/collections:%s", c.ID().String())
+	linkTitle := md.Link(c.title, path)
+	tags := formatTags(c.tags, gridMode)
 
-	return card.NewCard(title, []string{"by " + namespace, formattedPath, link, formattedTags}, 24, 0)
+	if gridMode {
+		card := card.NewCard(linkTitle, []string{c.description, tags, "\n"}, 36, 0)
+		return card.Render()
+	}
+	card := card.NewCard(linkTitle, []string{c.description, tags, "\n"}, 0, 0)
+	return card.Render()
+}
+
+func RenderCollection(c *Collection) string {
+	colCount := 0
+	out := ""
+
+	for _, card := range c.items {
+		if c.gridMode {
+			card.SetWidth(24)
+		}
+		out += card.Render()
+		out += md.HorizontalRule()
+
+		colCount++
+		if colCount%3 == 0 {
+			out += "\n</gno-columns>\n\n"
+			if colCount != len(c.items) {
+				out += "<gno-columns>\n"
+			}
+		} else if c.gridMode {
+			out += "\n|||\n"
+		}
+	}
+
+	return out
 }
